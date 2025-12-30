@@ -1,77 +1,148 @@
 #!/usr/bin/env bash
+# ============================================================================
+# Startup Script for Ubuntu Desktop Container
+# ============================================================================
+# Description:
+#   Initializes the containerized desktop environment including:
+#   - X11 display server (Xvfb)
+#   - D-Bus session/system daemons
+#   - VNC server with password authentication
+#   - LXDE desktop components
+#   - Process supervision via supervisord
+#
+# Environment Variables:
+#   - DISPLAY: X11 display identifier (default: :0)
+#   - RESOLUTION: Desktop resolution (default: 1920x1080)
+#   - VNC_PASSWORD: Password for VNC access (default: changeme)
+#
+# Exit on error to catch configuration issues early
+# ============================================================================
+
 set -e
 
 # -------------------------------------------------
-# Defaults
+# Configuration Defaults
 # -------------------------------------------------
 : "${DISPLAY:=:0}"
 : "${RESOLUTION:=1920x1080}"
 : "${VNC_PASSWORD:=changeme}"
 
 # -------------------------------------------------
-# Dynamic CUDA Integration
+# Helper Functions
 # -------------------------------------------------
-for cuda_dir in /usr/local/cuda-*; do
-    if [ -d "$cuda_dir" ]; then
-        echo "[startup] Found CUDA at $cuda_dir. Updating paths..."
-        export PATH="$cuda_dir/bin:$PATH"
-        export LD_LIBRARY_PATH="$cuda_dir/lib64:$LD_LIBRARY_PATH"
-        break 
+
+log_info() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] $*"
+}
+
+log_error() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2
+}
+
+# -------------------------------------------------
+# GPU/CUDA Support Detection
+# -------------------------------------------------
+log_info "Detecting CUDA installation..."
+
+# Create a persistent CUDA environment script that will be sourced by all shells
+CUDA_ENV_FILE="/etc/profile.d/cuda.sh"
+
+# Check if CUDA is installed
+CUDA_DIR=""
+for cuda_path in /usr/local/cuda-* /usr/local/cuda; do
+    if [ -d "$cuda_path" ]; then
+        CUDA_DIR="$cuda_path"
+        log_info "Found CUDA at $CUDA_DIR"
+        break
     fi
 done
 
+if [ -n "$CUDA_DIR" ]; then
+    # Create persistent environment script for all future shells
+    cat > "$CUDA_ENV_FILE" <<EOF
+#!/bin/bash
+# CUDA Environment Configuration - Auto-detected at container startup
+export CUDA_HOME="$CUDA_DIR"
+export PATH="\$CUDA_HOME/bin:\$PATH"
+export LD_LIBRARY_PATH="\$CUDA_HOME/lib64:\$LD_LIBRARY_PATH"
+EOF
+    chmod +x "$CUDA_ENV_FILE"
+    
+    # Source it immediately for the current process
+    source "$CUDA_ENV_FILE"
+    
+    log_info "CUDA environment configured at $CUDA_DIR"
+    log_info "  - Added to PATH"
+    log_info "  - Added to LD_LIBRARY_PATH"
+else
+    log_info "No CUDA installation detected"
+fi
+
 # -------------------------------------------------
-# Dimension Export for Supervisor
+# Export Display Dimensions for Supervisor
 # -------------------------------------------------
+# Parse resolution string (e.g., "1920x1080" -> WIDTH=1920, HEIGHT=1080)
 export WIDTH=$(echo "$RESOLUTION" | cut -d'x' -f1)
 export HEIGHT=$(echo "$RESOLUTION" | cut -d'x' -f2)
 
-echo "[startup] Display: $DISPLAY"
-echo "[startup] Resolution: ${WIDTH}x${HEIGHT}"
+log_info "Display: $DISPLAY"
+log_info "Resolution: ${WIDTH}x${HEIGHT}"
 
 # -------------------------------------------------
-# Prepare Environment
+# Prepare Directory Structure
 # -------------------------------------------------
+log_info "Creating required directories..."
 mkdir -p /tmp/.X11-unix /root/.vnc /var/run/dbus
 chmod 1777 /tmp/.X11-unix
 
 # -------------------------------------------------
-# D-Bus Initialization
+# D-Bus System Configuration
 # -------------------------------------------------
-# Clean up potential stale locks
+log_info "Initializing D-Bus..."
+
+# Remove stale sockets/PIDs that could prevent startup
 rm -f /var/run/dbus/pid /var/run/dbus/system_bus_socket
 
-# Generate machine-id (required for apps to launch)
+# Generate unique machine identifier (required for desktop apps)
 dbus-uuidgen > /var/lib/dbus/machine-id
 
-# Start System Bus
+# Start system bus (allows system-wide service communication)
 dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address
 
-# Start Session Bus (Critical for pcmanfm)
-# We export these variables so Supervisor processes inherit them
-echo "[startup] Starting D-Bus Session Bus..."
+# -------------------------------------------------
+# D-Bus Session Bus
+# -------------------------------------------------
+# Essential for:
+# - File manager (pcmanfm) to function properly
+# - Desktop notifications
+# - Inter-process communication in user session
+log_info "Starting D-Bus Session Bus..."
 eval $(dbus-launch --sh-syntax)
 export DBUS_SESSION_BUS_ADDRESS
 export DBUS_SESSION_BUS_PID
 
 # -------------------------------------------------
-# VNC Password Setup
+# VNC Server Password Authentication
 # -------------------------------------------------
+log_info "Setting up VNC password..."
 VNC_PASS_FILE=/root/.vnc/passwd
 rm -f "$VNC_PASS_FILE"
 x11vnc -storepasswd "$VNC_PASSWORD" "$VNC_PASS_FILE"
 
-
 # -------------------------------------------------
-# Theming & Wallpaper Configuration
+# Desktop Theme & Wallpaper Configuration
 # -------------------------------------------------
-mkdir -p /root/.config/pcmanfm/LXDE/
-mkdir -p /root/.config/lxsession/LXDE/
-mkdir -p /root/.config/gtk-3.0/
+log_info "Configuring desktop theme and wallpaper..."
 
-# 1. Set Wallpaper (pcmanfm config)
-# We use the standard Ubuntu wallpaper installed by 'ubuntu-wallpapers'
-cat <<EOF > /root/.config/pcmanfm/LXDE/desktop-items-0.conf
+mkdir -p /root/.config/pcmanfm/LXDE/ \
+         /root/.config/lxsession/LXDE/ \
+         /root/.config/gtk-3.0/
+
+# File Manager Desktop Items Configuration
+# - Wallpaper: Ubuntu default wallpaper
+# - Background color: Black (#000000)
+# - Show trash & mount points on desktop
+cat <<'EOF' > /root/.config/pcmanfm/LXDE/desktop-items-0.conf
 [*]
 wallpaper_mode=stretch
 wallpaper_common=1
@@ -86,9 +157,11 @@ show_trash=1
 show_mounts=1
 EOF
 
-# 2. Set Dark Theme & Icons (LXDE config)
-# Sets Arc-Dark theme and Papirus icons
-cat <<EOF > /root/.config/lxsession/LXDE/desktop.conf
+# LXDE Session Configuration
+# - Theme: Arc-Dark (modern dark theme)
+# - Icons: Papirus (comprehensive icon set)
+# - Disables lock manager to avoid session errors
+cat <<'EOF' > /root/.config/lxsession/LXDE/desktop.conf
 [Session]
 lock_manager/command=
 
@@ -99,8 +172,9 @@ sGtk/FontName=Sans 10
 iGtk/ToolbarStyle=3
 EOF
 
-# 3. Force GTK3 apps (like Terminal/VS Code) to use the Dark Theme
-cat <<EOF > /root/.config/gtk-3.0/settings.ini
+# GTK3 Settings for Modern Applications
+# Ensures VS Code, Terminal, and other GTK3 apps respect the dark theme
+cat <<'EOF' > /root/.config/gtk-3.0/settings.ini
 [Settings]
 gtk-theme-name=Arc-Dark
 gtk-icon-theme-name=Papirus
@@ -109,7 +183,18 @@ gtk-cursor-theme-name=Adwaita
 EOF
 
 # -------------------------------------------------
-# Start Supervisor
+# Launch Supervisor
 # -------------------------------------------------
-echo "[startup] Launching Supervisor..."
+# Supervisor manages multiple processes:
+# 1. Xvfb (X Virtual Framebuffer)
+# 2. Openbox (Window Manager)
+# 3. LXPanel (Taskbar)
+# 4. PCManFM (File Manager)
+# 5. x11vnc (VNC Server)
+# 6. Websockify (VNC over WebSocket)
+# 7. Nginx (HTTP Reverse Proxy)
+#
+# -n flag: Run in foreground (don't daemonize)
+# This allows Docker to track the main process
+log_info "Launching Supervisor to manage desktop services..."
 exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
