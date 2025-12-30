@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🐦‍⬛ RAVEN
+# 𓄿 RAVEN
 
 ### <strong>R</strong>emote <strong>A</strong>ccess <strong>V</strong>irtual <strong>E</strong>nvironment <strong>N</strong>ode
 
@@ -10,9 +10,9 @@
 [![noVNC](https://img.shields.io/badge/noVNC-1.6.0-orange)](https://novnc.com/)
 [![CUDA](https://img.shields.io/badge/CUDA-Auto%20Detected%20%2F%20Bindable-76B900?logo=nvidia&logoColor=white)](https://developer.nvidia.com/cuda-toolkit)
 
-**A high-performance, containerized Ubuntu desktop environment with browser-based access, GPU acceleration, and auto-detected CUDA support**
+**GPU accelerated Ubuntu desktop in the browser for AI and development workflows**
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#%EF%B8%8F-architecture) • [GPU Support](#-gpu-support) • [Troubleshooting](#-troubleshooting)
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [GPU Support](#-gpu-support) • [Configuration](#-configuration) • [Advanced Usage](#-advanced-usage) • [Troubleshooting](#-troubleshooting)
 
 </div>
 
@@ -20,63 +20,70 @@
 
 ## 📖 Overview
 
-**RAVEN** is a containerized desktop environment built on Ubuntu LTS versions (configurable). It provides a complete LXDE desktop accessible through your web browser via noVNC, eliminating the need for VNC client software. Perfect for remote development, CI/CD GUI testing, cloud workstations, and educational environments.
+**RAVEN** is a high-performance, containerized desktop environment built on Ubuntu LTS. It provides a complete **LXDE** desktop accessible through any modern web browser via **noVNC**, eliminating the need for local VNC client software.
 
-### What's New in?
+RAVEN is engineered for:
 
-- ✨ **Auto-Detected CUDA** - CUDA environment automatically detected and configured on startup
-- 🎯 **Persistent GPU Support** - CUDA paths persist across all interactive shells and processes
-- 📦 **Flexible Base Images** - Easy switching between Ubuntu 20.04, 22.04, and 24.04
-- 🚀 **Enhanced Volume Bindings** - Better GPU and shared memory mounting examples
-- 📝 **Improved Documentation** - Comprehensive GPU setup and troubleshooting guides
+- 💻 **Remote Development**: A consistent, pre-configured environment for teams.
+- 🤖 **AI/ML Workflows**: Native GPU support and auto-detected CUDA environments.
+- �� **GUI Testing**: Headless X11 framebuffer for CI/CD pipelines.
+- ☁️ **Cloud Workstations**: Lightweight desktop access on remote servers.
 
-### Why RAVEN?
+### ✨ What's New in v2.0?
 
-- ✅ **Zero Client Setup** - Access full desktop from any browser
-- ✅ **Docker Native** - Designed specifically for container orchestration
-- ✅ **GPU Ready** - CUDA auto-detection with persistent environment variables
-- ✅ **Developer Focused** - Python (Conda + UV), Brave Browser, and build tools
-- ✅ **Production Stable** - Process supervision with automatic recovery
-- ✅ **Lightweight** - Optimized resource usage with LXDE
+- 🚀 **Auto-Detected CUDA**: Intelligent startup scripts that detect and configure CUDA environments automatically.
+- 🎯 **Persistent GPU Support**: Environment variables that persist across all interactive shells and supervised processes.
+- 📦 **Flexible Base Images**: Support for Ubuntu 20.04, 22.04, and 24.04 via simple [Dockerfile customization](#-customizing-the-ubuntu-base-image).
+- 🔊 **Audio Integration**: ALSA support for audio-enabled applications.
+- 📝 **Technical Documentation**: Comprehensive guides for GPU binding and troubleshooting.
+
+### 🎯 Why RAVEN?
+
+- ✅ **Zero Client Setup**: Access your full desktop from any browser (Chrome, Firefox, Safari, Edge).
+- ✅ **Docker Native**: Designed specifically for container orchestration and cloud-native deployments.
+- ✅ **GPU Ready**: Automatic NVIDIA CUDA detection with persistent environment configuration.
+- ✅ **Developer Focused**: Pre-installed Python (Conda + UV), Brave Browser, and essential build tools.
+- ✅ **Production Stable**: Process supervision via **Supervisor** with automatic service recovery.
+- ✅ **Lightweight**: Optimized resource usage with the LXDE desktop environment.
 
 ---
 
 ## 🚀 Features
 
-### Desktop Environment
+### 🖥️ Desktop Environment
 
-- 🖥️ **Full Linux Desktop** powered by **LXDE** (Openbox + PCManFM) for a lightweight, responsive GUI
-- 🎨 **Modern Theming** with Arc-Dark theme, Papirus icons, and Ubuntu wallpapers
-- 🪟 **Window Management** via Openbox for smooth multi-window operations
-- 📁 **File Manager** with PCManFM for intuitive file operations
+- **Full Linux Desktop**: Powered by **LXDE** (Openbox + PCManFM) for a lightweight, responsive GUI.
+- **Modern Theming**: Pre-configured with Arc-Dark theme, Papirus icons, and Ubuntu wallpapers.
+- **Window Management**: Smooth multi-window operations via Openbox.
+- **File Management**: Intuitive file operations with PCManFM.
 
-### Remote Access
+### 🌐 Remote Access
 
-- 🌐 **Browser-Based Access** via noVNC (v1.6.0) - no VNC client required
-- 🔒 **Password Protected** VNC sessions with configurable authentication
-- 🔄 **Nginx Reverse Proxy** for clean HTTP access on port 80
-- 📱 **Cross-Platform** - works on desktop, tablet, and mobile browsers
+- **Browser-Based Access**: Powered by **noVNC (v1.6.0)** - no client installation required.
+- **Security**: Password-protected VNC sessions with configurable authentication.
+- **Reverse Proxy**: Integrated **Nginx** for clean HTTP access on port 80.
+- **Cross-Platform**: Fully responsive interface works on desktop, tablet, and mobile browsers.
 
-### Development Tools
+### 🛠️ Development Tools
 
-- 🦁 **Brave Browser** for secure web development and testing
-- 🐍 **Miniconda3** for Python environment management
-- ⚡ **uv Package Manager** for blazing-fast Python package installation
-- 🛠️ **Build Tools** including GCC, G++, CMake, Ninja, and Git
+- **Brave Browser**: Secure, fast web development and testing.
+- **Python Stack**: **Miniconda3** for environment management and **uv** for blazing-fast package installation.
+- **Build Essentials**: GCC, G++, CMake, Ninja, and Git pre-installed.
+- **VS Code Ready**: Optimized for remote development (Official Microsoft build).
 
-### System Features
+### ⚙️ System Features
 
-- 🎮 **GPU Support** with automatic NVIDIA CUDA detection and configuration
-- 🔊 **Audio System** via ALSA (Advanced Linux Sound Architecture)
-- 📦 **Multi-Stage Build** for optimized image size
-- 🔄 **Process Supervision** with automatic service recovery
-- 📊 **Comprehensive Logging** for all services
+- **GPU Acceleration**: Automatic NVIDIA CUDA detection and configuration.
+- **Audio System**: ALSA (Advanced Linux Sound Architecture) integration.
+- **Optimized Image**: Multi-stage Docker build for reduced image size.
+- **Process Supervision**: Automatic recovery of crashed services via Supervisor.
+- **Logging**: Comprehensive service logs available in `/var/log/supervisor/`.
 
 ---
 
 ## 🏗️ Architecture
 
-RAVEN uses a **decomposed desktop architecture** managed by Supervisor to ensure stability and automatic recovery. Unlike traditional LXDE setups that use `startlxde`, RAVEN launches each component independently to prevent Docker PID conflicts.
+RAVEN uses a **decomposed desktop architecture** managed by Supervisor to ensure stability and automatic recovery. Unlike traditional LXDE setups that use `startlxde`, RAVEN launches each component independently to prevent Docker PID conflicts and ensure granular control.
 
 ### Service Stack
 
@@ -88,12 +95,17 @@ RAVEN uses a **decomposed desktop architecture** managed by Supervisor to ensure
 | **22** | **PCManFM** | - | File manager, desktop icons, and wallpaper handler |
 | **30** | **x11vnc** | 5900 | VNC server exposing the virtual display |
 | **40** | **Websockify** | 6080 | WebSocket bridge for browser compatibility |
-| **50** | **Nginx** | 80 | HTTP reverse proxy serving noVNC interface |
+| **50** | **Nginx** | 80 | HTTP reverse proxy serving the noVNC interface |
 
 ### Data Flow
 
-```HTTP
-Browser (HTTP:80) → Nginx → Websockify (WebSocket:6080) → x11vnc (VNC:5900) → Xvfb (Display:0) → Desktop Apps
+```mermaid
+graph LR
+    A[Browser] -- HTTP:80 --> B[Nginx]
+    B -- Proxy --> C[Websockify]
+    C -- WebSocket:6080 --> D[x11vnc]
+    D -- VNC:5900 --> E[Xvfb]
+    E -- Display:0 --> F[Desktop Apps]
 ```
 
 ---
@@ -102,48 +114,36 @@ Browser (HTTP:80) → Nginx → Websockify (WebSocket:6080) → x11vnc (VNC:5900
 
 ### Prerequisites
 
-- **Docker** 20.10+ installed on your host system
-- (Optional) **NVIDIA Container Toolkit** for GPU acceleration
-- **4GB+ RAM** recommended for optimal performance
-- **Modern web browser** (Chrome, Firefox, Safari, Edge)
+- **Docker** 20.10+ installed on your host system.
+- (Optional) **NVIDIA Container Toolkit** for GPU acceleration.
+- **4GB+ RAM** recommended for optimal performance.
+- **Modern web browser** (Chrome, Firefox, Safari, Edge).
 
 ### 1️⃣ Get the Image
 
-You have two options to get the RAVEN Docker image:
+#### Option A: Pull Pre-built Image (Recommended)
 
-#### Option A: Pull Pre-built Image (Recommended for Quick Start)
+The pre-built image is the fastest way to get started and is kept in sync with the current codebase.
 
 ```bash
-# Pull the latest stable image from Docker Hub
+# Pull the latest stable image
 docker pull sarkarsaswata001/raven_personal:v0
 
-# Tag it for convenience (optional)
+# Tag it for convenience
 docker tag sarkarsaswata001/raven_personal:v0 raven-desktop:latest
 ```
 
-**Download time:** depending on your connection speed.
+*Download size: ~3.5GB | Estimated time: 2-5 minutes*
 
-> ✨ **Pre-built image includes:** Ubuntu 22.04 LTS, All dependencies, Brave Browser, Miniconda, UV and development tools pre-configured and ready to use.
+#### Option B: Build from Source
 
-#### Option B: Build from Source (For Customization)
+Build the image locally if you need to customize the base OS or pre-installed packages.
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/raven.git
 cd raven
-
-# Build the Docker image
 docker build -t raven-desktop:latest .
 ```
-
-**Build time:** ~10-15 minutes depending on your connection speed.
-
-> 🔧 **Build from source if you need to:**
->
-> - Customize the Ubuntu base version
-> - Modify installed packages
-> - Add custom configurations
-> - Use different desktop environments
 
 ### 2️⃣ Run the Container
 
@@ -154,116 +154,43 @@ docker run -d --name raven \
   -p 80:80 \
   -p 5900:5900 \
   -e VNC_PASSWORD=YourSecurePassword123 \
-  -e RESOLUTION=1920x1080 \
   --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
+  raven-desktop:latest
 ```
 
-#### With GPU Support (Recommended for CUDA)
+#### With GPU Support (Recommended for AI/ML)
+
+```bash
+docker run -d --name raven \
+  --gpus all \
+  -p 80:80 \
+  -e VNC_PASSWORD=YourSecurePassword123 \
+  --shm-size=2g \
+  raven-desktop:latest
+```
+
+#### Full Configuration (GPU + Audio + Workspace)
 
 ```bash
 docker run -d --name raven \
   --gpus all \
   -p 80:80 \
   -p 5900:5900 \
-  -e VNC_PASSWORD=YourSecurePassword123 \
-  -e RESOLUTION=1920x1080 \
-  --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
-```
-
-**CUDA will be auto-detected** and available in all interactive shells:
-
-```bash
-docker exec -it raven bash
-nvcc --version  # CUDA Compiler available!
-python -c "import torch; print(torch.cuda.is_available())"  # Works!
-```
-
-#### With GPU + Host CUDA Binding (Advanced)
-
-For access to host CUDA libraries:
-
-```bash
-docker run -d --name raven \
-  --gpus all \
-  -p 80:80 \
-  -p 5900:5900 \
-  -e VNC_PASSWORD=YourSecurePassword123 \
-  -e RESOLUTION=1920x1080 \
-  --shm-size=2g \
-  -v /usr/local/cuda-12.8:/usr/local/cuda-12.8 \
-  -v /dev/shm:/dev/shm \
-  sarkarsaswata001/raven_personal:v0
-```
-
-#### With Audio Support
-
-```bash
-docker run -d --name raven \
-  -p 80:80 \
-  -p 5900:5900 \
-  -e VNC_PASSWORD=YourSecurePassword123 \
-  -e RESOLUTION=1920x1080 \
-  -e ALSADEV=hw:0,0 \
   --device /dev/snd \
-  --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
-```
-
-#### With Persistent Workspace
-
-```bash
-docker run -d --name raven \
-  -p 80:80 \
-  -p 5900:5900 \
   -e VNC_PASSWORD=YourSecurePassword123 \
   -e RESOLUTION=1920x1080 \
   -v $(pwd)/workspace:/workspace \
   --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
+  raven-desktop:latest
 ```
 
-#### Full Example: GPU + Audio + Workspace + Custom Ports
-
-```bash
-docker run -it --name raven \
-  --gpus all \
-  -p 8000:80 \
-  -p 9090:5900 \
-  --device /dev/snd \
-  -e ALSADEV=hw:2,0 \
-  -e VNC_PASSWORD=YourSecurePassword \
-  -e RESOLUTION=1920x1080 \
-  -v /dev/shm:/dev/shm \
-  -v /usr/local/cuda-12.8:/usr/local/cuda-12.8 \
-  -v $(pwd)/workspace:/workspace \
-  --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
-```
+> **⚠️ Important:** Always set `--shm-size` to at least **2g**. Modern browsers (Brave/Chrome) use shared memory for rendering; insufficient memory will cause "Aw, Snap!" crashes.
 
 ### 3️⃣ Access the Desktop
 
-#### Web Browser (Recommended)
-
-Open your browser and navigate to:
-
-```
-http://localhost
-```
-
-Password: `<your VNC_PASSWORD>`
-
-#### VNC Client (Advanced)
-
-Use any VNC client to connect:
-
-```
-vnc://localhost:5900
-Password: <your VNC_PASSWORD>
-```
-
-> **⚠️ Important:** Set `--shm-size` to at least **2g** to prevent browser crashes. Browsers use shared memory for rendering.
+1. Open your browser and navigate to `http://localhost`.
+2. Enter your `VNC_PASSWORD` (default: `changeme`).
+3. You are now inside your RAVEN desktop environment!
 
 ---
 
@@ -276,235 +203,147 @@ Password: <your VNC_PASSWORD>
 | `VNC_PASSWORD` | `changeme` | Password for VNC authentication |
 | `RESOLUTION` | `1920x1080` | Virtual screen resolution (WxH) |
 | `DISPLAY` | `:0` | X11 display identifier |
-
-### Common Resolutions
-
-```bash
-# Full HD
--e RESOLUTION=1920x1080
-
-# HD
--e RESOLUTION=1280x720
-
-# 4K (requires more resources)
--e RESOLUTION=3840x2160
-
-# Ultrawide
--e RESOLUTION=2560x1080
-```
+| `ALSADEV` | `hw:0,0` | ALSA audio device identifier |
 
 ### Port Mapping
 
 | Container Port | Protocol | Purpose |
 | ------------- | --------- | -------- |
-| `80` | HTTP | noVNC web interface |
-| `5900` | VNC | Raw VNC protocol |
-| `6080` | WebSocket | noVNC WebSocket bridge |
+| `80` | HTTP | noVNC web interface (via Nginx) |
+| `5900` | VNC | Raw VNC protocol for external clients |
+| `6080` | WebSocket | noVNC WebSocket bridge (Websockify) |
 
 ---
 
 ## 🎮 GPU Support
 
-### CUDA Support
+RAVEN v2.0 features an intelligent GPU integration system that handles CUDA configuration automatically.
 
-RAVEN supports CUDA in two primary ways:
+### 🚀 CUDA Auto-Detection
 
-#### Option 1: Auto-Detection (Container CUDA - Recommended)
+When the container starts, the `startup.sh` script:
 
-CUDA is automatically detected if installed inside the container during startup:
+1. Scans `/usr/local/` for CUDA installations (e.g., `cuda-12.8`).
+2. Automatically generates `/etc/profile.d/cuda.sh`.
+3. Configures `PATH` and `LD_LIBRARY_PATH` for all shells.
 
-```bash
-docker run -d --name raven \
-  --gpus all \
-  -p 80:80 \
-  -p 5900:5900 \
-  -e VNC_PASSWORD=YourPassword \
-  -e RESOLUTION=1920x1080 \
-  --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
-```
-
-**How it works:**
-1. `startup.sh` searches for CUDA installations in `/usr/local/cuda-*`
-2. Found CUDA paths are configured persistently in `/etc/profile.d/cuda.sh`
-3. All interactive shells automatically source this configuration
-4. `nvcc` and CUDA tools are immediately available
-
-**Verify auto-detection:**
-```bash
-docker exec -it raven bash
-nvcc --version  # Should work!
-echo $CUDA_HOME
-```
-
-#### Option 2: Host CUDA Binding (Advanced)
-
-**⚠️ Important:** Host CUDA binding requires additional configuration to work correctly.
-
-When binding your host's CUDA installation, you need to:
-1. Bind the CUDA directory
-2. Also bind the symlink (if it exists)
-3. Ensure proper library paths
-
-**Method A: With CUDA Symlink (Recommended)**
-
-```bash
-# First, find your CUDA installation
-which nvcc
-# Output: /usr/local/cuda-12.8/bin/nvcc
-
-# Check if symlink exists
-ls -la /usr/local/cuda
-# If it points to cuda-12.8, great!
-
-# Run container with both bindings
-docker run -it --name raven \
-  --gpus all \
-  -p 8000:80 \
-  -p 9090:5900 \
-  -e VNC_PASSWORD=test \
-  -e RESOLUTION=1920x1080 \
-  -v /usr/local/cuda-12.8:/usr/local/cuda-12.8:ro \
-  -v /usr/local/cuda:/usr/local/cuda:ro \
-  -v /dev/shm:/dev/shm \
-  --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
-```
-
-**Method B: With Device Binding and Read-Only Mount**
-
-```bash
-docker run -it --name raven \
-  --gpus all \
-  --device /dev/nvidiactl \
-  --device /dev/nvidia0 \
-  --device /dev/nvidia1 \
-  -p 8000:80 \
-  -p 9090:5900 \
-  -e VNC_PASSWORD=test \
-  -e RESOLUTION=1920x1080 \
-  -v /usr/local/cuda-12.8:/usr/local/cuda-12.8:ro \
-  -v /dev/shm:/dev/shm \
-  --shm-size=2g \
-  sarkarsaswata001/raven_personal:v0
-```
-
-#### Troubleshooting Host CUDA Binding
-
-**Problem: `nvcc: command not found` after binding CUDA**
-
-Check if the CUDA path is correctly configured:
+**Verify your GPU setup:**
 
 ```bash
 docker exec -it raven bash
-
-# Check if CUDA directory is mounted
-ls /usr/local/cuda-12.8/bin/ | grep nvcc
-
-# If empty, the mount failed. Verify on your host:
-# On HOST system:
-ls -la /usr/local/cuda-12.8/bin/nvcc
-
-# Check environment variables in container
-echo $CUDA_HOME
-echo $PATH | grep cuda
-
-# If empty, manually source the profile
-source /etc/profile.d/cuda.sh
-echo $CUDA_HOME
-```
-
-**Problem: CUDA mounted but libraries not found**
-
-```bash
-# Inside container
-export CUDA_HOME=/usr/local/cuda-12.8
-export PATH=$CUDA_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
-
-# Now test
 nvcc --version
 nvidia-smi
 ```
 
-**Solution: Create CUDA symlink in container**
+### 🛠️ Host CUDA Binding (Advanced)
 
-If your host has `/usr/local/cuda-12.8` but no `/usr/local/cuda` symlink, create it:
-
-```bash
-docker exec -it raven bash
-
-# Create symlink inside container
-ln -s /usr/local/cuda-12.8 /usr/local/cuda
-
-# Verify
-nvcc --version
-```
-
-#### Verifying CUDA Installation
-
-**For both auto-detection and binding:**
+If you prefer to use your host's CUDA installation instead of installing it in the container:
 
 ```bash
-docker exec -it raven bash -c "
-  echo '=== CUDA Home ===' && echo \$CUDA_HOME &&
-  echo '=== nvcc ===' && nvcc --version &&
-  echo '=== GPU Devices ===' && nvidia-smi &&
-  echo '=== Python GPU ===' && python -c 'import torch; print(torch.cuda.is_available())'
-"
+docker run -d --name raven \
+  --gpus all \
+  -v /usr/local/cuda-12.8:/usr/local/cuda-12.8:ro \
+  -v /usr/local/cuda:/usr/local/cuda:ro \
+  raven-desktop:latest
 ```
 
-#### Common CUDA Paths
+*Note: Ensure you bind both the versioned directory and the `/usr/local/cuda` symlink for maximum compatibility.*
 
-| CUDA Version | Directory | Has nvcc |
-|-------------|-----------|----------|
-| **12.8** | `/usr/local/cuda-12.8` | ✅ Yes |
-| **12.x** | `/usr/local/cuda-12` | ✅ Yes |
-| **11.8** | `/usr/local/cuda-11.8` | ✅ Yes |
-| **Symlink** | `/usr/local/cuda` | ✅ Yes (points to active) |
+---
 
-#### When to Use Each Method
+## 🔧 Advanced Usage
 
-| Scenario | Method | Reason |
-|----------|--------|--------|
-| **Quick Testing** | Auto-Detection | No host setup needed; just works |
-| **Exact Host Version** | Host Binding | Ensures CUDA version matches host exactly |
-| **Production** | Auto-Detection | More stable; fewer mount issues |
-| **Development** | Either | Depends on your testing needs |
+### Managing Services
 
-#### Why Auto-Detection is Recommended
-
-✅ **Auto-Detection advantages:**
-- No bind mounts needed
-- Works consistently across shells
-- Persistent environment configuration
-- No symlink issues
-- Easier troubleshooting
-
-❌ **Host Binding challenges:**
-- Requires correct symlink setup
-- Library path mismatches possible
-- Mount timing issues
-- More complex troubleshooting
-
-#### Manual CUDA Setup in Container
-
-If auto-detection doesn't find CUDA, install it manually:
+RAVEN uses **Supervisor** to manage all desktop components. You can check service status or restart components without restarting the container.
 
 ```bash
-docker exec -it raven bash
+# Check status of all services
+docker exec raven supervisorctl status
 
-# Update package manager
-apt-get update
-
-# Install CUDA toolkit
-apt-get install -y cuda-toolkit-12-8
-
-# Add to path permanently
-echo "export PATH=/usr/local/cuda-12.8/bin:\$PATH" >> /root/.bashrc
-echo "export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64:\$LD_LIBRARY_PATH" >> /root/.bashrc
-
-# Source and verify
-source /root/.bashrc
-nvcc --version
+# Restart a specific service (e.g., the window manager)
+docker exec raven supervisorctl restart openbox
 ```
+
+### Accessing Logs
+
+All service logs (stdout and stderr) are stored in `/var/log/supervisor/`.
+
+```bash
+# View Xvfb errors
+docker exec raven cat /var/log/supervisor/xvfb.err.log
+
+# Tail Nginx logs
+docker exec raven tail -f /var/log/supervisor/nginx.out.log
+```
+
+### Customizing the Ubuntu Base Image
+
+You can easily change the Ubuntu version by modifying the `FROM ubuntu:...` instruction in the `Dockerfile`:
+
+```dockerfile
+# Example: Switch to Ubuntu 24.04 LTS
+FROM ubuntu:24.04
+```
+
+*See the [Technical FAQ](#-faq) for version-specific considerations.*
+
+---
+
+## 🐛 Troubleshooting
+
+### Black Screen in Browser
+
+- **Cause**: Xvfb or Openbox failed to start.
+- **Fix**: Check `supervisorctl status`. If `xvfb` is `FATAL`, check `/var/log/supervisor/xvfb.err.log`. Usually caused by a stale X11 lock file in `/tmp/.X11-unix/`.
+
+### Browser "Aw, Snap!" Crashes
+
+- **Cause**: Insufficient shared memory.
+- **Fix**: Ensure you started the container with `--shm-size=2g`.
+
+### `nvcc: command not found`
+
+- **Cause**: CUDA paths not sourced or mount failed.
+- **Fix**: Run `source /etc/profile.d/cuda.sh`. If using host binding, verify the mount path with `ls /usr/local/cuda`.
+
+---
+
+## 🔒 Security Considerations
+
+1. **VNC Password**: Never run RAVEN in a public environment with the default `changeme` password.
+2. **Network**: If exposing port 80 to the internet, use a reverse proxy (like Traefik or Nginx Proxy Manager) with SSL/TLS.
+3. **Privileges**: Avoid running the container with `--privileged` unless absolutely necessary for specific hardware access.
+
+---
+
+## ❓ FAQ
+
+**Q: Can I run this in Kubernetes?**  
+A: Yes. Use a Deployment and expose port 80 via a Service or Ingress. For GPU support, ensure your nodes have the NVIDIA Device Plugin installed.
+
+**Q: How do I save my work?**  
+A: Use Docker volumes. Mount a host directory to `/workspace` in the container: `-v /path/on/host:/workspace`.
+
+**Q: Is audio supported?**  
+A: Yes, via ALSA. Use `--device /dev/snd` and ensure your host audio drivers are compatible.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+---
+
+## ⚖️ License
+
+RAVEN is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for full details.
+
+<div align="center">
+
+**Built with ❤️ for the developer community**
+
+[⬆ Back to Top](#-raven)
+
+</div>
