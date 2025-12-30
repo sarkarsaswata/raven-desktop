@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🦅 RAVEN
+# 🐦‍⬛ RAVEN
 
 ### <strong>R</strong>emote <strong>A</strong>ccess <strong>V</strong>irtual <strong>E</strong>nvironment <strong>N</strong>ode
 
