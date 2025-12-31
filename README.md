@@ -34,10 +34,28 @@ Containerized Ubuntu 22.04 LXDE desktop with browser-based access via noVNC. Des
 
 ## Architecture
 
-Supervisor-managed decomposed desktop: Xvfb (X11 framebuffer) → Openbox/LXPanel/PCManFM (desktop components) → x11vnc (VNC:5900) → Websockify (WS:6080) → Nginx (HTTP:80). Browser connects via Nginx reverse proxy.
+Supervisor-managed decomposed desktop:
+
+```mermaid
+graph LR
+    A[Browser] -->|HTTP:80| B[Nginx]
+    B -->|WS:6080| C[Websockify]
+    C -->|VNC:5900| D[x11vnc]
+    D --> E[Xvfb]
+    E --> F[Openbox]
+    E --> G[LXPanel]
+    E --> H[PCManFM]
+    I[Supervisor] -.manages.-> E
+    I -.manages.-> F
+    I -.manages.-> G
+    I -.manages.-> H
+    I -.manages.-> D
+    I -.manages.-> C
+    I -.manages.-> B
+```
 
 | Service | Port | Function |
-|---------|------|----------|
+| --------- | ------ | ---------- |
 | Nginx | 80 | HTTP proxy for noVNC |
 | Websockify | 6080 | WebSocket bridge (internal) |
 | x11vnc | 5900 | VNC server |
@@ -130,7 +148,7 @@ docker run -d --name raven \
 **Environment Variables:**
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| ---------- | --------- | ------------- |
 | `VNC_PASSWORD` | `changeme` | VNC authentication password |
 | `RESOLUTION` | `1920x1080` | Screen resolution (WxH) |
 | `CUDA_VERSION` | - | Select specific CUDA version (e.g., `12.8`) |
@@ -139,9 +157,9 @@ docker run -d --name raven \
 
 **Ports:**
 
-| Port | Purpose |
-|------|----------|
-| 80 | noVNC web interface (HTTP) |
+| Port | Purpose                             |
+|------|-------------------------------------|
+| 80   | noVNC web interface (HTTP)          |
 | 5900 | VNC protocol (direct client access) |
 
 ---
@@ -207,7 +225,7 @@ docker exec raven tail -f /var/log/supervisor/xvfb.err.log
 ## Troubleshooting
 
 | Issue | Solution |
-|-------|----------|
+| ------- | --------- |
 | Black screen | Check `supervisorctl status`. If Xvfb FATAL, inspect `/var/log/supervisor/xvfb.err.log` (stale X11 lock) |
 | Browser crashes | Use `--shm-size=2g` |
 | `nvcc` not found | Run `source /etc/profile.d/cuda.sh`; verify mounts with `ls /usr/local/cuda` |
