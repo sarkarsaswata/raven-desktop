@@ -1,5 +1,5 @@
 # ============================================================================
-# Docker Image: Ubuntu 22.04 with LXDE Desktop, and VNC Access
+# Docker Image: Ubuntu with LXDE Desktop, and VNC Access
 # ============================================================================
 # Description:
 #   A complete containerized desktop environment with LXDE.
@@ -31,7 +31,7 @@ FROM ghcr.io/astral-sh/uv:0.9.20 AS uv-builder
 # -------------------------------------------------
 # Stage 3: Main Image
 # -------------------------------------------------
-FROM ubuntu:22.04
+FROM  nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 LABEL maintainer="Saswata Sarkar <sarkarsaswata01@gmail.com>"
 LABEL description="Ubuntu Desktop Environment with noVNC"
@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash coreutils ca-certificates curl wget gnupg openssl \
     # X11 & VNC
     dbus-x11 x11-utils x11-xserver-utils xauth xvfb x11vnc \
+    libxkbcommon-x11-0 \
     # LXDE & Desktop components
     lxde gtk2-engines-murrine gtk2-engines-pixbuf \
     # Themes & Icons
