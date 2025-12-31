@@ -18,7 +18,7 @@
 # Exit on error to catch configuration issues early
 # ============================================================================
 
-set -e
+set -xe
 
 # -------------------------------------------------
 # Configuration Defaults
@@ -40,42 +40,102 @@ log_error() {
 }
 
 # -------------------------------------------------
-# GPU/CUDA Support Detection
+# GPU/CUDA Support & Compiler Detection
 # -------------------------------------------------
-log_info "Detecting CUDA installation..."
+log_info "Detecting CUDA installation and compiler setup..."
 
-# Create a persistent CUDA environment script that will be sourced by all shells
 CUDA_ENV_FILE="/etc/profile.d/cuda.sh"
+: "${CUDA_VERSION:=}"   # optional override: "12.8"
+CUDA_VERSION_TRIMMED="${CUDA_VERSION%%,*}"
 
-# Check if CUDA is installed
-CUDA_DIR=""
+has_nvcc() { [ -x "$1/bin/nvcc" ]; }
+
+CUDA_WITH_NVCC=()
+CUDA_RUNTIME_ONLY=()
 for cuda_path in /usr/local/cuda-* /usr/local/cuda; do
-    if [ -d "$cuda_path" ]; then
-        CUDA_DIR="$cuda_path"
-        log_info "Found CUDA at $CUDA_DIR"
-        break
+    [ -d "$cuda_path" ] || continue
+    if has_nvcc "$cuda_path"; then
+        CUDA_WITH_NVCC+=("$cuda_path")
+    else
+        CUDA_RUNTIME_ONLY+=("$cuda_path")
     fi
 done
 
+pick_cuda_dir() {
+    if [ -n "$CUDA_VERSION_TRIMMED" ]; then
+        for dir in "${CUDA_WITH_NVCC[@]}"; do
+            [[ "$dir" =~ cuda-"$CUDA_VERSION_TRIMMED"$ ]] && { echo "$dir"; return; }
+            [[ "$dir" == "/usr/local/cuda" && "$CUDA_VERSION_TRIMMED" == "default" ]] && { echo "$dir"; return; }
+        done
+        for dir in "${CUDA_RUNTIME_ONLY[@]}"; do
+            [[ "$dir" =~ cuda-"$CUDA_VERSION_TRIMMED"$ ]] && { echo "$dir"; return; }
+            [[ "$dir" == "/usr/local/cuda" && "$CUDA_VERSION_TRIMMED" == "default" ]] && { echo "$dir"; return; }
+        done
+    fi
+    if [ ${#CUDA_WITH_NVCC[@]} -gt 0 ]; then
+        printf '%s\n' "${CUDA_WITH_NVCC[@]}" | sort -V | tail -n1
+    else
+        printf '%s\n' "${CUDA_RUNTIME_ONLY[@]}" | sort -V | tail -n1
+    fi
+}
+
+CUDA_DIR="$(pick_cuda_dir)"
+
+# Detect compiler versions
+detect_compiler() {
+    if [ -x /usr/bin/gcc-11 ]; then
+        echo "gcc-11"
+    elif [ -x /usr/bin/gcc-12 ]; then
+        echo "gcc-12"
+    elif [ -x /usr/bin/gcc ]; then
+        echo "gcc"
+    fi
+}
+
+CC_COMPILER="$(detect_compiler)"
+CXX_COMPILER="${CC_COMPILER/gcc/g++}"
+
 if [ -n "$CUDA_DIR" ]; then
-    # Create persistent environment script for all future shells
+    log_info "Using CUDA at $CUDA_DIR"
+    log_info "Using compilers: CC=$CC_COMPILER, CXX=$CXX_COMPILER"
+    
     cat > "$CUDA_ENV_FILE" <<EOF
 #!/bin/bash
-# CUDA Environment Configuration - Auto-detected at container startup
 export CUDA_HOME="$CUDA_DIR"
-export PATH="\$CUDA_HOME/bin:\$PATH"
+export CC=/usr/bin/$CC_COMPILER
+export CXX=/usr/bin/$CXX_COMPILER
+export PATH="\$CUDA_HOME/bin:/root/.local/bin:/usr/local/bin:\$PATH"
 export LD_LIBRARY_PATH="\$CUDA_HOME/lib64:\$LD_LIBRARY_PATH"
+export LIBRARY_PATH="\$CUDA_HOME/lib64/stubs:\$LIBRARY_PATH"
+export CUDA_LAUNCH_BLOCKING=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export UV_LINK_MODE=copy
+export UV_VENV_CLEAR=1
+export UV_HTTP_TIMEOUT=300
+export PYTHONWARNINGS=ignore
 EOF
     chmod +x "$CUDA_ENV_FILE"
-    
-    # Source it immediately for the current process
+
+    if ! grep -q 'profile.d/cuda.sh' /root/.bashrc 2>/dev/null; then
+        echo 'source /etc/profile.d/cuda.sh' >> /root/.bashrc
+    fi
+
+    if has_nvcc "$CUDA_DIR"; then
+        ln -sf "$CUDA_DIR/bin/nvcc" /usr/local/bin/nvcc
+    else
+        log_info "nvcc not found under $CUDA_DIR (likely runtime-only)"
+    fi
+
     source "$CUDA_ENV_FILE"
-    
-    log_info "CUDA environment configured at $CUDA_DIR"
-    log_info "  - Added to PATH"
-    log_info "  - Added to LD_LIBRARY_PATH"
 else
-    log_info "No CUDA installation detected"
+    log_info "No CUDA installation detected; setting fallback compiler and PATH"
+    export CC=/usr/bin/$CC_COMPILER
+    export CXX=/usr/bin/$CXX_COMPILER
+    export PATH="/root/.local/bin:/usr/local/bin:$PATH"
+    export UV_LINK_MODE=copy
+    export UV_VENV_CLEAR=1
+    export UV_HTTP_TIMEOUT=300
+    export PYTHONWARNINGS=ignore
 fi
 
 # -------------------------------------------------
