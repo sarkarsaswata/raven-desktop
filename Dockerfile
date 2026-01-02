@@ -123,7 +123,9 @@ WORKDIR /workspace
 # -------------------------------------------------
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 COPY startup.sh /startup.sh
+COPY entrypoint-user.sh /usr/local/bin/entrypoint-user.sh
 RUN chmod +x /startup.sh
+RUN chmod +x /usr/local/bin/entrypoint-user.sh
 
 # -------------------------------------------------
 # Expose Service Ports
@@ -133,5 +135,5 @@ EXPOSE 80 5900 6080
 # -------------------------------------------------
 # Entrypoint: Use tini for proper signal handling
 # -------------------------------------------------
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint-user.sh"]
 CMD ["/startup.sh"]

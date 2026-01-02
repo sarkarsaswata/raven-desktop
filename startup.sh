@@ -14,18 +14,14 @@
 #   - DISPLAY: X11 display identifier (default: :0)
 #   - RESOLUTION: Desktop resolution (default: 1920x1080)
 #   - VNC_PASSWORD: Password for VNC access (default: changeme)
+#   - HOST_UID: User ID for workspace file ownership (default: 1000)
+#   - HOST_GID: Group ID for workspace file ownership (default: 1000)
+#   - HOST_USER: Username for workspace file ownership (default: dev)
 #
 # Exit on error to catch configuration issues early
 # ============================================================================
 
 set -xe
-
-# -------------------------------------------------
-# Configuration Defaults
-# -------------------------------------------------
-: "${DISPLAY:=:0}"
-: "${RESOLUTION:=1920x1080}"
-: "${VNC_PASSWORD:=changeme}"
 
 # -------------------------------------------------
 # Helper Functions
@@ -38,6 +34,39 @@ log_info() {
 log_error() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [ERROR] $*" >&2
 }
+
+# -------------------------------------------------
+# Workspace Ownership & Permissions (User-Agnostic)
+# -------------------------------------------------
+# Purpose:
+#   Ensures the bind-mounted /workspace is owned by the host user,
+#   preventing permission conflicts when edited in VS Code or other editors.
+#   This runs on every container startup to maintain consistency.
+#
+# Environment variables (set by docker run):
+#   - HOST_UID: Host user ID (passed via -e HOST_UID=$(id -u))
+#   - HOST_GID: Host group ID (passed via -e HOST_GID=$(id -g))
+# -------------------------------------------------
+
+if [ -n "${HOST_UID}" ] && [ -n "${HOST_GID}" ]; then
+    log_info "Adjusting /workspace ownership to UID:GID ${HOST_UID}:${HOST_GID}"
+    chown -R "${HOST_UID}:${HOST_GID}" /workspace
+else
+    log_info "HOST_UID and/or HOST_GID not set; using defaults (1000:1000)"
+    chown -R 1000:1000 /workspace
+fi
+
+# Set umask so files created by root remain readable/writable by the group
+# This ensures container-created files can be edited on the host
+umask 0002
+log_info "umask set to 0002"
+
+# -------------------------------------------------
+# Configuration Defaults
+# -------------------------------------------------
+: "${DISPLAY:=:0}"
+: "${RESOLUTION:=1920x1080}"
+: "${VNC_PASSWORD:=changeme}"
 
 # -------------------------------------------------
 # GPU/CUDA Support & Compiler Detection
