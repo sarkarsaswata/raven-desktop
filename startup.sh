@@ -36,30 +36,32 @@ log_error() {
 }
 
 # -------------------------------------------------
-# Workspace Ownership & Permissions (User-Agnostic)
+# Workspace Ownership & Permissions (Optimized)
 # -------------------------------------------------
 # Purpose:
-#   Ensures the bind-mounted /workspace is owned by the host user,
-#   preventing permission conflicts when edited in VS Code or other editors.
-#   This runs on every container startup to maintain consistency.
-#
-# Environment variables (set by docker run):
-#   - HOST_UID: Host user ID (passed via -e HOST_UID=$(id -u))
-#   - HOST_GID: Host group ID (passed via -e HOST_GID=$(id -g))
+#   Ensures the bind-mounted /workspace is owned by the host user.
+#   Only runs if ownership is incorrect to avoid expensive chown on every startup.
 # -------------------------------------------------
 
 if [ -n "${HOST_UID}" ] && [ -n "${HOST_GID}" ]; then
-    log_info "Adjusting /workspace ownership to UID:GID ${HOST_UID}:${HOST_GID}"
-    chown -R "${HOST_UID}:${HOST_GID}" /workspace
+    log_info "Checking /workspace ownership (target: UID:GID ${HOST_UID}:${HOST_GID})"
+    # Only chown if ownership is incorrect
+    CURRENT_UID=$(stat -c '%u' /workspace 2>/dev/null || echo "0")
+    CURRENT_GID=$(stat -c '%g' /workspace 2>/dev/null || echo "0")
+    
+    if [ "${CURRENT_UID}" != "${HOST_UID}" ] || [ "${CURRENT_GID}" != "${HOST_GID}" ]; then
+        log_info "Adjusting /workspace ownership to UID:GID ${HOST_UID}:${HOST_GID}"
+        chown -R "${HOST_UID}:${HOST_GID}" /workspace
+    else
+        log_info "Workspace ownership already correct, skipping chown"
+    fi
 else
-    log_info "HOST_UID and/or HOST_GID not set; using defaults (1000:1000)"
-    chown -R 1000:1000 /workspace
+    log_info "HOST_UID and/or HOST_GID not set; using defaults (${HOST_UID}:1000)"
+    chown -R 1000:1000 /workspace 2>/dev/null || true
 fi
 
 # Set umask so files created by root remain readable/writable by the group
-# This ensures container-created files can be edited on the host
 umask 0002
-log_info "umask set to 0002"
 
 # -------------------------------------------------
 # Configuration Defaults
@@ -77,54 +79,31 @@ CUDA_ENV_FILE="/etc/profile.d/cuda.sh"
 : "${CUDA_VERSION:=}"   # optional override: "12.8"
 CUDA_VERSION_TRIMMED="${CUDA_VERSION%%,*}"
 
-has_nvcc() { [ -x "$1/bin/nvcc" ]; }
+# Find CUDA installations (prefer those with nvcc)
+CUDA_DIR=""
+if [ -n "$CUDA_VERSION_TRIMMED" ] && [ "$CUDA_VERSION_TRIMMED" != "default" ]; then
+    # Look for specific version
+    CUDA_DIR=$(find /usr/local -maxdepth 1 -type d -name "cuda-${CUDA_VERSION_TRIMMED}" 2>/dev/null | head -n1)
+fi
 
-CUDA_WITH_NVCC=()
-CUDA_RUNTIME_ONLY=()
-for cuda_path in /usr/local/cuda-* /usr/local/cuda; do
-    [ -d "$cuda_path" ] || continue
-    if has_nvcc "$cuda_path"; then
-        CUDA_WITH_NVCC+=("$cuda_path")
-    else
-        CUDA_RUNTIME_ONLY+=("$cuda_path")
-    fi
-done
+# Fallback: find any CUDA installation (prefer with nvcc)
+if [ -z "$CUDA_DIR" ]; then
+    CUDA_DIR=$(find /usr/local -maxdepth 1 -type d -name "cuda-*" -o -name "cuda" 2>/dev/null | \
+        while read -r dir; do
+            [ -x "$dir/bin/nvcc" ] && echo "$dir" && break
+        done | head -n1)
+fi
 
-pick_cuda_dir() {
-    if [ -n "$CUDA_VERSION_TRIMMED" ]; then
-        for dir in "${CUDA_WITH_NVCC[@]}"; do
-            [[ "$dir" =~ cuda-"$CUDA_VERSION_TRIMMED"$ ]] && { echo "$dir"; return; }
-            [[ "$dir" == "/usr/local/cuda" && "$CUDA_VERSION_TRIMMED" == "default" ]] && { echo "$dir"; return; }
-        done
-        for dir in "${CUDA_RUNTIME_ONLY[@]}"; do
-            [[ "$dir" =~ cuda-"$CUDA_VERSION_TRIMMED"$ ]] && { echo "$dir"; return; }
-            [[ "$dir" == "/usr/local/cuda" && "$CUDA_VERSION_TRIMMED" == "default" ]] && { echo "$dir"; return; }
-        done
-    fi
-    if [ ${#CUDA_WITH_NVCC[@]} -gt 0 ]; then
-        printf '%s\n' "${CUDA_WITH_NVCC[@]}" | sort -V | tail -n1
-    else
-        printf '%s\n' "${CUDA_RUNTIME_ONLY[@]}" | sort -V | tail -n1
-    fi
-}
+# If still not found, use any CUDA directory
+[ -z "$CUDA_DIR" ] && CUDA_DIR=$(find /usr/local -maxdepth 1 -type d -name "cuda-*" -o -name "cuda" 2>/dev/null | sort -V | tail -n1)
 
-CUDA_DIR="$(pick_cuda_dir)"
-
-# Detect compiler versions
-detect_compiler() {
-    if [ -x /usr/bin/gcc-11 ]; then
-        echo "gcc-11"
-    elif [ -x /usr/bin/gcc-12 ]; then
-        echo "gcc-12"
-    elif [ -x /usr/bin/gcc ]; then
-        echo "gcc"
-    fi
-}
-
-CC_COMPILER="$(detect_compiler)"
+# Detect compiler (use highest available gcc version)
+CC_COMPILER=$(ls -1 /usr/bin/gcc-[0-9]* 2>/dev/null | sort -V | tail -n1)
+[ -z "$CC_COMPILER" ] && CC_COMPILER="/usr/bin/gcc"
+CC_COMPILER=$(basename "$CC_COMPILER")
 CXX_COMPILER="${CC_COMPILER/gcc/g++}"
 
-if [ -n "$CUDA_DIR" ]; then
+if [ -n "$CUDA_DIR" ] && [ -d "$CUDA_DIR" ]; then
     log_info "Using CUDA at $CUDA_DIR"
     log_info "Using compilers: CC=$CC_COMPILER, CXX=$CXX_COMPILER"
     
@@ -136,35 +115,22 @@ export CXX=/usr/bin/$CXX_COMPILER
 export PATH="\$CUDA_HOME/bin:/root/.local/bin:/usr/local/bin:\$PATH"
 export LD_LIBRARY_PATH="\$CUDA_HOME/lib64:\$LD_LIBRARY_PATH"
 export LIBRARY_PATH="\$CUDA_HOME/lib64/stubs:\$LIBRARY_PATH"
-export CUDA_LAUNCH_BLOCKING=1
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-export UV_LINK_MODE=copy
-export UV_VENV_CLEAR=1
-export UV_HTTP_TIMEOUT=300
-export PYTHONWARNINGS=ignore
 EOF
     chmod +x "$CUDA_ENV_FILE"
 
-    if ! grep -q 'profile.d/cuda.sh' /root/.bashrc 2>/dev/null; then
+    # Add to bashrc if not already present
+    grep -q 'profile.d/cuda.sh' /root/.bashrc 2>/dev/null || \
         echo 'source /etc/profile.d/cuda.sh' >> /root/.bashrc
-    fi
 
-    if has_nvcc "$CUDA_DIR"; then
-        ln -sf "$CUDA_DIR/bin/nvcc" /usr/local/bin/nvcc
-    else
-        log_info "nvcc not found under $CUDA_DIR (likely runtime-only)"
-    fi
+    # Create nvcc symlink if available
+    [ -x "$CUDA_DIR/bin/nvcc" ] && ln -sf "$CUDA_DIR/bin/nvcc" /usr/local/bin/nvcc
 
+    # Source the environment
     source "$CUDA_ENV_FILE"
 else
-    log_info "No CUDA installation detected; setting fallback compiler and PATH"
+    log_info "No CUDA installation detected; setting fallback compiler"
     export CC=/usr/bin/$CC_COMPILER
     export CXX=/usr/bin/$CXX_COMPILER
-    export PATH="/root/.local/bin:/usr/local/bin:$PATH"
-    export UV_LINK_MODE=copy
-    export UV_VENV_CLEAR=1
-    export UV_HTTP_TIMEOUT=300
-    export PYTHONWARNINGS=ignore
 fi
 
 # -------------------------------------------------
@@ -178,59 +144,37 @@ log_info "Display: $DISPLAY"
 log_info "Resolution: ${WIDTH}x${HEIGHT}"
 
 # -------------------------------------------------
-# Prepare Directory Structure
+# Directory Structure & D-Bus Initialization (Consolidated)
 # -------------------------------------------------
-log_info "Creating required directories..."
+log_info "Initializing directories and D-Bus..."
+
+# Prepare directory structure
 mkdir -p /tmp/.X11-unix /root/.vnc /var/run/dbus
 chmod 1777 /tmp/.X11-unix
 
-# -------------------------------------------------
 # D-Bus System Configuration
-# -------------------------------------------------
-log_info "Initializing D-Bus..."
-
-# Remove stale sockets/PIDs that could prevent startup
 rm -f /var/run/dbus/pid /var/run/dbus/system_bus_socket
+dbus-uuidgen > /var/lib/dbus/machine-id 2>/dev/null || true
+dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address &
 
-# Generate unique machine identifier (required for desktop apps)
-dbus-uuidgen > /var/lib/dbus/machine-id
-
-# Start system bus (allows system-wide service communication)
-dbus-daemon --config-file=/usr/share/dbus-1/system.conf --print-address
-
-# -------------------------------------------------
-# D-Bus Session Bus
-# -------------------------------------------------
-# Essential for:
-# - File manager (pcmanfm) to function properly
-# - Desktop notifications
-# - Inter-process communication in user session
-log_info "Starting D-Bus Session Bus..."
+# D-Bus Session Bus (for desktop apps)
 eval $(dbus-launch --sh-syntax)
-export DBUS_SESSION_BUS_ADDRESS
-export DBUS_SESSION_BUS_PID
+export DBUS_SESSION_BUS_ADDRESS DBUS_SESSION_BUS_PID
 
 # -------------------------------------------------
-# VNC Server Password Authentication
+# VNC Password & Desktop Configuration (Consolidated)
 # -------------------------------------------------
-log_info "Setting up VNC password..."
+log_info "Configuring VNC and desktop environment..."
+
+# VNC password
 VNC_PASS_FILE=/root/.vnc/passwd
 rm -f "$VNC_PASS_FILE"
-x11vnc -storepasswd "$VNC_PASSWORD" "$VNC_PASS_FILE"
+x11vnc -storepasswd "$VNC_PASSWORD" "$VNC_PASS_FILE" 2>/dev/null
 
-# -------------------------------------------------
-# Desktop Theme & Wallpaper Configuration
-# -------------------------------------------------
-log_info "Configuring desktop theme and wallpaper..."
+# Desktop configuration directories
+mkdir -p /root/.config/{pcmanfm/LXDE,lxsession/LXDE,gtk-3.0}
 
-mkdir -p /root/.config/pcmanfm/LXDE/ \
-         /root/.config/lxsession/LXDE/ \
-         /root/.config/gtk-3.0/
-
-# File Manager Desktop Items Configuration
-# - Wallpaper: Ubuntu default wallpaper
-# - Background color: Black (#000000)
-# - Show trash & mount points on desktop
+# File Manager Desktop Configuration
 cat <<'EOF' > /root/.config/pcmanfm/LXDE/desktop-items-0.conf
 [*]
 wallpaper_mode=stretch
@@ -247,9 +191,6 @@ show_mounts=1
 EOF
 
 # LXDE Session Configuration
-# - Theme: Arc-Dark (modern dark theme)
-# - Icons: Papirus (comprehensive icon set)
-# - Disables lock manager to avoid session errors
 cat <<'EOF' > /root/.config/lxsession/LXDE/desktop.conf
 [Session]
 lock_manager/command=
@@ -261,8 +202,7 @@ sGtk/FontName=Sans 10
 iGtk/ToolbarStyle=3
 EOF
 
-# GTK3 Settings for Modern Applications
-# Ensures VS Code, Terminal, and other GTK3 apps respect the dark theme
+# GTK3 Settings
 cat <<'EOF' > /root/.config/gtk-3.0/settings.ini
 [Settings]
 gtk-theme-name=Arc-Dark
