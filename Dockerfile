@@ -18,122 +18,136 @@
 #   - 6080: Websocket VNC (noVNC)
 # ============================================================================
 
-# -------------------------------------------------
+# ============================================================================
 # Stage 1: Miniconda Base
-# -------------------------------------------------
+# ============================================================================
 FROM continuumio/miniconda3:main AS conda-builder
 
-# -------------------------------------------------
+# ============================================================================
 # Stage 2: UV Package Manager
-# -------------------------------------------------
+# ============================================================================
 FROM ghcr.io/astral-sh/uv:0.9.20 AS uv-builder
 
-# -------------------------------------------------
+# ============================================================================
 # Stage 3: Main Image
-# -------------------------------------------------
+# ============================================================================
 FROM  nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 LABEL maintainer="Saswata Sarkar <sarkarsaswata01@gmail.com>"
 LABEL description="Ubuntu Desktop Environment with noVNC"
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    DISPLAY=:0 \
+# ============================================================================
+# CUDA and Build Configuration (Static, Build-Time)
+# ============================================================================
+ENV CUDA_HOME=/usr/local/cuda
+
+ENV CC=/usr/bin/gcc-11 \
+    CXX=/usr/bin/g++-11 \
+    CUDA_LAUNCH_BLOCKING=1 \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+    TORCH_CUDA_ARCH_LIST="8.6" \
+    TCNN_CUDA_ARCHITECTURES="86" \
+    TCNN_HALF_PRECISION=1 \
+    PATH=/root/.local/bin:${CUDA_HOME}/bin:/usr/local/bin:${PATH} \
+    LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH} \
+    LIBRARY_PATH=${CUDA_HOME}/lib64/stubs:${LIBRARY_PATH}
+
+# ============================================================================
+# Desktop Environment Configuration (Static, Build-Time)
+# ============================================================================
+ENV DISPLAY=:0 \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
-    PATH=/opt/conda/bin:$PATH
+    DEBIAN_FRONTEND=noninteractive \
+    UV_LINK_MODE=copy \
+    UV_VENV_CLEAR=1 \
+    UV_HTTP_TIMEOUT=300 \
+    PYTHONWARNINGS=ignore
 
-# -------------------------------------------------
+# ============================================================================
 # APT Optimization: Use Ubuntu mirror network
-# -------------------------------------------------
+# ============================================================================
 RUN sed -i 's#http://archive.ubuntu.com/ubuntu/#mirror://mirrors.ubuntu.com/mirrors.txt#' /etc/apt/sources.list
 
-# -------------------------------------------------
-# System Dependencies & GUI Stack
-# -------------------------------------------------
+# ============================================================================
+# System Dependencies & GUI Stack (Optimized)
+# ============================================================================
+# ============================================================================
+# System Dependencies (Consolidated)
+# ============================================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Core utilities
-    bash coreutils ca-certificates curl wget gnupg openssl \
-    # X11 & VNC
-    dbus-x11 x11-utils x11-xserver-utils xauth xvfb x11vnc \
-    libxkbcommon-x11-0 \
-    # LXDE & Desktop components
-    lxde gtk2-engines-murrine gtk2-engines-pixbuf \
-    # Themes & Icons
+    # Build tools
+    build-essential cmake ninja-build pkg-config \
+    gcc-11 g++-11 git curl wget \
+    # CUDA development
+    libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev libtbb-dev \
+    # GUI & VNC stack
+    dbus-x11 x11-utils xvfb x11vnc lxde supervisor nginx tini \
+    # Graphics libraries
+    libglib2.0-0 libsm6 libxext6 libxrender1 \
+    libjpeg-dev libpng-dev libopencv-dev \
+    # Desktop components
     arc-theme adwaita-icon-theme papirus-icon-theme ubuntu-wallpapers \
-    # Audio & Media
-    alsa-utils libasound2 ffmpeg \
+    # Python & dev
+    python-is-python3 python3.10-dev \
     # Utilities
-    supervisor nginx tini net-tools procps tmux \
-    # Fonts & Graphics
-    fonts-dejavu-core libglib2.0-0 libsm6 libxext6 libxrender1 \
-    # Development tools
-    build-essential gcc g++ cmake ninja-build pkg-config git \
-    python3 python3-pip python-is-python3 python3.10-dev \
-    # GPU/Graphics libraries
-    libegl1-mesa-dev libgl1-mesa-dev libgles2-mesa-dev \
-    libjpeg-dev libpng-dev libopencv-dev libtbb-dev \
-    && rm -rf /var/lib/apt/lists/*
+    tmux net-tools procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/cache/apt/archives/*
 
-# -------------------------------------------------
+# ============================================================================
+# Compiler Setup
+# ============================================================================
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 20 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 20
 
-# -------------------------------------------------
-# noVNC & Websockify (Web-based VNC)
-# Integrated from: https://github.com/novnc/noVNC
-
-# -------------------------------------------------
-# noVNC (Web-based VNC)
+# ============================================================================
+# noVNC, Websockify & Brave Browser (Consolidated)
+# ============================================================================
 RUN mkdir -p /opt/novnc && \
-    curl -L https://github.com/novnc/noVNC/archive/refs/tags/v1.6.0.tar.gz | \
+    curl -fsSL https://github.com/novnc/noVNC/archive/refs/tags/v1.6.0.tar.gz | \
     tar xz --strip 1 -C /opt/novnc && \
     ln -s /opt/novnc/vnc.html /opt/novnc/index.html && \
-    pip3 install --no-cache-dir websockify setuptools wheel pip
+    pip3 install --no-cache-dir websockify setuptools wheel pip && \
+    curl -fsSL https://dl.brave.com/install.sh | sh && \
+    rm -rf /tmp/* /var/tmp/*
 
-# -------------------------------------------------
-# Brave Browser (Official Installer)
-# -------------------------------------------------
-RUN curl -fsS https://dl.brave.com/install.sh | sh
-
-# -------------------------------------------------
+# ============================================================================
 # Copy Pre-built Tools from Earlier Stages
-# -------------------------------------------------
+# ============================================================================
 COPY --from=conda-builder /opt/conda /opt/conda
 COPY --from=uv-builder /uv /uvx /bin/
 
-# -------------------------------------------------
+# ============================================================================
 # Nginx Configuration (Reverse Proxy for noVNC)
-# -------------------------------------------------
+# ============================================================================
 RUN printf "server {\n  listen 80;\n  location / {\n    proxy_pass http://127.0.0.1:6080/;\n    proxy_http_version 1.1;\n    proxy_set_header Upgrade \$http_upgrade;\n    proxy_set_header Connection \"Upgrade\";\n  }\n}\n" \
     > /etc/nginx/sites-available/default
 
-# -------------------------------------------------
-# Disable Lock Manager (Prevents Session Errors)
-# -------------------------------------------------
-RUN mkdir -p /etc/xdg/autostart /root/.config/lxsession/LXDE && \
+# ============================================================================
+# Configuration Setup (Consolidated)
+# ============================================================================
+RUN mkdir -p /etc/xdg/autostart /root/.config/lxsession/LXDE /workspace /var/log/supervisor && \
     echo "[Desktop Entry]\nHidden=true" > /etc/xdg/autostart/light-locker.desktop && \
     echo "[Session]\nlock_manager/command=" > /root/.config/lxsession/LXDE/desktop.conf
 
-# -------------------------------------------------
-# Setup Workspace & Logs
-# -------------------------------------------------
-RUN mkdir -p /workspace /var/log/supervisor
 WORKDIR /workspace
 
-# -------------------------------------------------
-# Copy Configuration & Startup Script
-# -------------------------------------------------
+# ============================================================================
+# Copy Configuration & Startup Scripts (Optimized)
+# ============================================================================
 COPY supervisord.conf /etc/supervisor/supervisord.conf
 COPY startup.sh /startup.sh
 COPY entrypoint-user.sh /usr/local/bin/entrypoint-user.sh
-RUN chmod +x /startup.sh
-RUN chmod +x /usr/local/bin/entrypoint-user.sh
+RUN chmod +x /startup.sh /usr/local/bin/entrypoint-user.sh
 
-# -------------------------------------------------
+# ============================================================================
 # Expose Service Ports
-# -------------------------------------------------
+# ============================================================================
 EXPOSE 80 5900 6080
 
-# -------------------------------------------------
+# ============================================================================
 # Entrypoint: Use tini for proper signal handling
-# -------------------------------------------------
+# ============================================================================
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint-user.sh"]
 CMD ["/startup.sh"]
