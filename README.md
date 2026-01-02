@@ -11,7 +11,7 @@
 
 GPU-accelerated Ubuntu desktop accessible via browser. LXDE, noVNC, automatic CUDA detection, Supervisor-managed services.
 
-[Quick Start](#quick-start) • [GPU Support](#gpu-support) • [Configuration](#configuration) • [Troubleshooting](#troubleshooting)
+[Quick Start](#quick-start) • [User-Agnostic Workflow](#user-agnostic-file-ownership-developer-workflow) • [GPU Support](#gpu-support) • [Configuration](#configuration) • [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -70,8 +70,7 @@ graph LR
 ### Pull Image
 
 ```bash
-docker pull sarkarsaswata001/raven_personal:v0
-docker tag sarkarsaswata001/raven_personal:v0 raven-desktop:latest
+docker pull sarkarsaswata001/raven-desktop:latest
 ```
 
 ### Run
@@ -82,6 +81,9 @@ docker tag sarkarsaswata001/raven_personal:v0 raven-desktop:latest
 docker run -d --name raven \
   -p 80:80 -p 5900:5900 \
   -e VNC_PASSWORD=YourSecurePassword123 \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -e HOST_USER=$(whoami) \
   --shm-size=2g \
   raven-desktop:latest
 ```
@@ -93,6 +95,9 @@ docker run -d --name raven \
   --gpus all \
   -p 80:80 -p 5900:5900 \
   -e VNC_PASSWORD=YourSecurePassword123 \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -e HOST_USER=$(whoami) \
   --shm-size=2g \
   -v /usr/local/cuda-12.8:/usr/local/cuda-12.8:ro \
   -v /usr/local/cuda:/usr/local/cuda:ro \
@@ -107,6 +112,9 @@ docker run -d --name raven \
   -p 80:80 -p 5900:5900 \
   --device /dev/snd \
   -e VNC_PASSWORD=YourSecurePassword123 \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -e HOST_USER=$(whoami) \
   -e RESOLUTION=1920x1080 \
   -v /path/on/host:/workspace \
   --shm-size=2g \
@@ -121,6 +129,9 @@ docker run -d --name raven \
   -p 8082:80 -p 9092:5900 \
   --device /dev/snd \
   -e VNC_PASSWORD=YourSecurePassword123 \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -e HOST_USER=$(whoami) \
   -e RESOLUTION=1920x1080 \
   -v /path/on/host:/workspace \
   -v /path/on/host/subdir1:/workspace/subdir1 \
@@ -134,12 +145,93 @@ docker run -d --name raven \
 ```
 
 > **⚠️ Use `--shm-size >= 2g`** to avoid browser “Aw, Snap!” crashes.
-
+> **🔑 User Identity Matching (CRITICAL):** The environment variables `HOST_UID`, `HOST_GID`, and `HOST_USER` ensure files created inside the container appear on the host with correct ownership. **Always include these**—without them, you'll get permission conflicts when editing files in VS Code. See [User-Agnostic Workflow](#user-agnostic-file-ownership-developer-workflow) for details.
+>
 ### 3️⃣ Access the Desktop
 
 1. Open `http://localhost` (or your mapped port, e.g., `http://localhost:8082`).
 2. Enter the `VNC_PASSWORD` you set at `docker run`.
 3. You’re in the RAVEN desktop.
+
+---
+
+## User-Agnostic File Ownership (Developer Workflow)
+
+This container is designed to work seamlessly with your host user, preventing the common issue where `docker exec` commands create files owned by root, making them uneditable in VS Code.
+
+### How It Works
+
+1. **Container Startup:** When the container boots, `startup.sh` automatically claims `/workspace` for your host user (via `HOST_UID` and `HOST_GID`).
+2. **File Creation:** Any files you create inside the container will inherit the correct permissions, matching your host user.
+3. **VS Code Integration:** Edit files directly in VS Code without permission issues—no `sudo` required.
+
+### Development Workflow
+
+#### **Starting the Container**
+
+Always pass your local identity when starting the container:
+
+```bash
+docker run -d --name raven \
+  -e HOST_UID=$(id -u) \
+  -e HOST_GID=$(id -g) \
+  -e HOST_USER=$(whoami) \
+  -v /path/to/codebase:/workspace \
+  raven-desktop:latest
+```
+
+#### **Interactive Development (Bash/Shell)**
+
+To ensure files created by `uv init`, `uv venv`, `git clone`, or other tools are owned by your host user, **always exec as your host user**, not root:
+
+```bash
+# ✅ CORRECT: Execute as host user
+docker exec -it --user $(whoami) raven bash
+
+# ✅ ALSO CORRECT: Execute as specific host user by name
+docker exec -it --user myusername raven bash
+```
+
+Inside this shell, commands like these create files with the correct ownership:
+
+```bash
+# Create virtual environment (files owned by host user)
+uv venv
+
+# Initialize new project (correct file permissions)
+uv init my-project
+
+# Clone repository (no permission conflicts after exit)
+git clone https://github.com/user/repo.git
+
+# Edit with terminal editors (no sudo required back on host)
+nano pyproject.toml
+```
+
+#### **Why This Matters**
+
+Without matching user IDs, you'd get this problem:
+
+```bash
+# ❌ BAD: Files created as root
+docker exec raven bash -c "uv init myproject"
+# Result: Files owned by root:root, uneditable in VS Code
+
+# ✅ GOOD: Files match host user
+docker exec -it --user $(whoami) raven bash -c "uv init myproject"
+# Result: Files owned by $USER:$GROUP, fully editable in VS Code
+```
+
+### Verification
+
+Check that ownership is correct:
+
+```bash
+# On host machine
+ls -la /path/to/codebase/
+# Expected: drwxr-xr-x  user  group  4096  Jan 2 10:30 .venv
+#           -rw-r--r--  user  group  1234  Jan 2 10:30 pyproject.toml
+```
 
 ---
 
@@ -152,6 +244,9 @@ docker run -d --name raven \
 | `VNC_PASSWORD` | `changeme` | VNC authentication password |
 | `RESOLUTION` | `1920x1080` | Screen resolution (WxH) |
 | `CUDA_VERSION` | - | Select specific CUDA version (e.g., `12.8`) |
+| `HOST_UID` | `1000` | **[CRITICAL]** User ID for workspace file ownership. Set to `$(id -u)` to match your host user. |
+| `HOST_GID` | `1000` | **[CRITICAL]** Group ID for workspace file ownership. Set to `$(id -g)` to match your host group. |
+| `HOST_USER` | `dev` | **[CRITICAL]** Username for workspace file ownership. Set to `$(whoami)` to match your host username. |
 | `DISPLAY` | `:0` | X11 display identifier |
 | `ALSADEV` | `hw:0,0` | ALSA audio device |
 
