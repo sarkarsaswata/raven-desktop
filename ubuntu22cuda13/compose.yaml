@@ -1,0 +1,146 @@
+services:
+  ubuntu-desktop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agrimap-desktop
+    image: ubuntu-desktop-vnc:13.0.0-devel-ubuntu22.04
+    
+    # ========================================================================
+    # GPU & Device Access
+    # ========================================================================
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    
+    devices:
+      - /dev/snd  # Sound device for audio support
+    
+    # ========================================================================
+    # Port Mappings
+    # ========================================================================
+    ports:
+      - "8022:80"      # noVNC web interface
+      - "9022:5900"    # VNC protocol (raw)
+    
+    # ========================================================================
+    # Environment Variables
+    # ========================================================================
+    environment:
+      # VNC Configuration
+      - VNC_PASSWORD=divine_ubuntu
+      - DISPLAY=:0
+      
+      # Desktop Resolution
+      - RESOLUTION=1920x1080
+      
+      # Audio Configuration
+      - ALSADEV=hw:2,0
+      
+      # Workspace Ownership
+      - HOST_UID=1000
+      - HOST_GID=1000
+      - HOST_USER=dev
+      
+      # CUDA Configuration (Both GPUs)
+      - CUDA_VISIBLE_DEVICES=0,1
+      
+      # Python & Build Tools
+      - PYTHONUNBUFFERED=1
+      - DEBIAN_FRONTEND=noninteractive
+    
+    # ========================================================================
+    # Volume Mounts
+    # ========================================================================
+    volumes:
+      # Workspace (persistent code/data)
+      - /media/storage/saswata/codebase/agrimap:/workspace/agrimap
+      
+      # System device access (GPU, sound, USB)
+      - /dev:/dev
+      - /dev/shm:/dev/shm
+      - /dev/bus/usb:/dev/bus/usb
+      - /run/udev:/run/udev:ro
+      
+      # X11 socket for display
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      
+      # Optional: Persistent VNC settings
+      - ~/.vnc:/root/.vnc:rw
+    
+    # ========================================================================
+    # Resource Limits
+    # ========================================================================
+    mem_limit: 8g
+    memswap_limit: 8g
+    cpus: '4.0'
+    
+    # ========================================================================
+    # Restart Policy
+    # ========================================================================
+    restart: unless-stopped
+    
+    # ========================================================================
+    # Logging
+    # ========================================================================
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    
+    # ========================================================================
+    # Network & Security
+    # ========================================================================
+    networks:
+      - desktop-net
+    
+    # ========================================================================
+    # Health Check
+    # ========================================================================
+    healthcheck:
+      test: ["CMD-SHELL", "ss -tuln | grep -q ':80' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    stdin_open: true
+    tty: true
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  desktop-net:
+    driver: bridge
+
+# ============================================================================
+# Usage:
+# ============================================================================
+# Build & run:
+#   docker-compose up -d
+#
+# View logs:
+#   docker-compose logs -f ubuntu-desktop
+#
+# Check status:
+#   docker-compose ps
+#
+# Access:
+#   http://localhost:8022 (noVNC web)
+#   localhost:9022 (VNC raw)
+#
+# Verify GPUs:
+#   docker-compose exec ubuntu-desktop nvidia-smi
+#
+# Stop:
+#   docker-compose down
+#
+# Remove all data:
+#   docker-compose down -v
+# ============================================================================
