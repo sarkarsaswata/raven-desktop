@@ -32,21 +32,30 @@ services:
       - ALSADEV=hw:2,0
       - HOST_UID=${HOST_UID:-1000}
       - HOST_GID=${HOST_GID:-1000}
-      - CUDA_VISIBLE_DEVICES=0 
+      - CUDA_VISIBLE_DEVICES=0
       - OMNI_KIT_ALLOW_ROOT=1
       - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all      
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      # Isaac Sim / Isaac Lab paths (must match the volume mount targets above)
+      - ISAACSIM_PATH=/root/IsaacSim
+      - ISAACLAB_PATH=/root/IsaacLab
+      - ISAACSIM_ASSET_PATH=/root/Assets_IsaacSim
     
     volumes:
-      # SHARED: Read-only suggested to prevent one user from breaking the base install
-      - /mount/Data2/saswata/isaac_sim_storage/isaacsim:/root/isaacsim:ro
-      - /mount/Data2/saswata/isaac_sim_storage/isaacsim_assets:/root/isaacsim_assets:ro
+      # SHARED: Read-only — prevents any user from corrupting the base install
+      - /mount/Data2/saswata/isaac_sim_storage/IsaacSim:/root/IsaacSim:ro
+      - /mount/Data2/saswata/isaac_sim_storage/assets_root:/root/Assets_IsaacSim:ro
+      # SHARED: IsaacLab source (read-only for safety)
+      # NOTE: The _isaac_sim symlink MUST be a RELATIVE symlink on the host:
+      #   cd /mount/Data2/saswata/isaac_sim_storage/IsaacLab
+      #   ln -sfn ../IsaacSim _isaac_sim
+      - /mount/Data2/saswata/isaac_sim_storage/IsaacLab:/root/IsaacLab:ro
       
       # UNIQUE: Each user MUST have their own data/config folder
       - ${HOST_USER_DATA}:/root/.nvidia-omniverse:rw
       
       # UNIQUE: Each user's personal workspace
-      - ${HOST_WORKSPACE}:/workspace
+      - ${HOST_WORKSPACE}:/root/workspace:rw
       
       # SYSTEM: Standard sockets
       - /dev:/dev
