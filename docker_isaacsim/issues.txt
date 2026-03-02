@@ -1,4 +1,0 @@
-root@ef9f023be3ba:/workspace# code --no-sandbox
-You are trying to start Visual Studio Code as a super user which isn't recommended. If this was intended, please add the argument `--no-sandbox` and specify an alternate user data directory using the `--user-data-dir` argument.
-root@ef9f023be3ba:/workspace# brave-browser
-[4473:4473:0211/024655.455007:ERROR:content/browser/zygote_host/zygote_host_impl_linux.cc:101] Running as root without --no-sandbox is not supported. See https://crbug.com/638180.
