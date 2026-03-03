@@ -144,10 +144,10 @@ docker run -d --name raven \
   raven-desktop:latest
 ```
 
-> **⚠️ Use `--shm-size >= 2g`** to avoid browser “Aw, Snap!” crashes.
-> **🔑 User Identity Matching (CRITICAL):** The environment variables `HOST_UID`, `HOST_GID`, and `HOST_USER` ensure files created inside the container appear on the host with correct ownership. **Always include these**—without them, you'll get permission conflicts when editing files in VS Code. See [User-Agnostic Workflow](#user-agnostic-file-ownership-developer-workflow) for details.
+> **Use `--shm-size >= 2g`** to avoid browser “Aw, Snap!” crashes.
+> **User Identity Matching (CRITICAL):** The environment variables `HOST_UID`, `HOST_GID`, and `HOST_USER` ensure files created inside the container appear on the host with correct ownership. **Always include these**—without them, you'll get permission conflicts when editing files in VS Code. See [User-Agnostic Workflow](#user-agnostic-file-ownership-developer-workflow) for details.
 >
-### 3️⃣ Access the Desktop
+### Access the Desktop
 
 1. Open `http://localhost` (or your mapped port, e.g., `http://localhost:8082`).
 2. Enter the `VNC_PASSWORD` you set at `docker run`.
@@ -185,10 +185,10 @@ docker run -d --name raven \
 To ensure files created by `uv init`, `uv venv`, `git clone`, or other tools are owned by your host user, **always exec as your host user**, not root:
 
 ```bash
-# ✅ CORRECT: Execute as host user
+# CORRECT: Execute as host user
 docker exec -it --user $(whoami) raven bash
 
-# ✅ ALSO CORRECT: Execute as specific host user by name
+# ALSO CORRECT: Execute as specific host user by name
 docker exec -it --user myusername raven bash
 ```
 
@@ -213,11 +213,11 @@ nano pyproject.toml
 Without matching user IDs, you'd get this problem:
 
 ```bash
-# ❌ BAD: Files created as root
+# BAD: Files created as root
 docker exec raven bash -c "uv init myproject"
 # Result: Files owned by root:root, uneditable in VS Code
 
-# ✅ GOOD: Files match host user
+# GOOD: Files match host user
 docker exec -it --user $(whoami) raven bash -c "uv init myproject"
 # Result: Files owned by $USER:$GROUP, fully editable in VS Code
 ```
@@ -261,7 +261,7 @@ ls -la /path/to/codebase/
 
 ## GPU Support
 
-### 🚀 CUDA Auto-Detection
+### CUDA Auto-Detection
 
 When the container starts, the [`startup.sh`](startup.sh) script:
 
@@ -277,12 +277,12 @@ nvcc --version
 nvidia-smi
 ```
 
-### 🎚️ Choosing How CUDA Appears
+### Choosing How CUDA Appears
 
 - **Host bind (small image, flexible):** Mount full toolkits: `-v /usr/local/cuda-12.8:/usr/local/cuda-12.8:ro -v /usr/local/cuda:/usr/local/cuda:ro`. Optional `CUDA_VERSION=13.0` (or `12.8`, etc.) chooses a mounted version; otherwise the highest nvcc-capable mount wins. Without mounts, `nvcc` will not exist.
 - **Bake CUDA (no binds required):** If you want `-e CUDA_VERSION=12.8` to “just work” with no mounts, base the image on a CUDA *devel* variant (e.g., `FROM nvidia/cuda:12.8.0-devel-ubuntu22.04`) or apt-install the toolkit inside the Dockerfile. Then the env just selects which baked-in version to expose on `PATH`.
 
-### 🛠️ Host CUDA Binding (Advanced)
+### Host CUDA Binding (Advanced)
 
 If you prefer to use your host's CUDA installation instead of installing it in the container:
 
@@ -342,7 +342,7 @@ docker exec raven tail -f /var/log/supervisor/xvfb.err.log
 
 ---
 
-## ⚖️ License
+## License
 
 RAVEN is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for full details.
 
