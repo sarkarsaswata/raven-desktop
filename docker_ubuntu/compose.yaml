@@ -1,0 +1,38 @@
+services:
+  ubuntu-desktop:
+    image: local/ubuntu-desktop:minimal
+    container_name: ${CONTAINER_NAME:-desktop_container}
+
+    runtime: nvidia
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, graphics, compute, utility]
+
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${VNC_PORT:-9090}:5900"
+
+    environment:
+      - VNC_PASSWORD=${VNC_PASSWORD:-changeme}
+      - DISPLAY=:0
+      - RESOLUTION=1920x1080
+      - HOST_UID=${HOST_UID:-1000}
+      - HOST_GID=${HOST_GID:-1000}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility
+
+    volumes:
+      - ${HOST_WORKSPACE}:/root/workspace:rw
+      - /dev/shm:/dev/shm
+      - /run/udev:/run/udev:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+    shm_size: '4gb'
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
