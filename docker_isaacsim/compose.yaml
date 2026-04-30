@@ -37,7 +37,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
       # Isaac Sim / Isaac Lab paths (must match the volume mount targets above)
-      - ISAACSIM_PATH=/root/IsaacSim
+      - ISAACSIM_PATH=/root/IsaacSim/_build/linux-x86_64/release
       - ISAACLAB_PATH=/root/IsaacLab
       - ISAACSIM_ASSET_PATH=/root/Assets_IsaacSim
     
@@ -57,6 +57,21 @@ services:
       # UNIQUE: Each user's personal workspace
       - ${HOST_WORKSPACE}:/root/workspace:rw
       
+      # HOST ext cache: extscache/ symlinks point to /home/saswata/.local/share/ov/data/exts/v2/ on the host.
+      # Inside the container the Dockerfile creates:
+      #   /home/saswata/.local/share/ov/data/exts/v2 -> /root/.local/share/ov/data/exts/v2
+      # so the kernel resolves the absolute symlinks through the container-native mount below.
+      - /home/saswata/.local/share/ov/data/exts/v2:/root/.local/share/ov/data/exts/v2:ro
+
+      # HOST packman cache: _build/linux-x86_64/release/kit is an absolute symlink pointing here.
+      # Kit SDK is the core Isaac Sim runtime — must be visible at the exact same absolute path.
+      - /home/saswata/.cache/packman:/home/saswata/.cache/packman:ro
+
+      # HOST source path: _build symlinks for apps, python_packages, standalone_examples, tools
+      # all point to /mount/Data2/.../IsaacSim/source/... (absolute host paths).
+      # Mounting at the same path makes them resolvable inside the container.
+      - /mount/Data2/saswata/isaac_sim_storage/IsaacSim:/mount/Data2/saswata/isaac_sim_storage/IsaacSim:ro
+
       # SYSTEM: Standard sockets
       - /dev:/dev
       - /dev/shm:/dev/shm
