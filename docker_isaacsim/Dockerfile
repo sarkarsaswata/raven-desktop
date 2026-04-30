@@ -71,7 +71,7 @@ ENV CC=/usr/bin/gcc \
 # ============================================================================
 # Isaac Sim / Isaac Lab Paths Configuration
 # ============================================================================
-ENV ISAACSIM_PATH=/root/IsaacSim \
+ENV ISAACSIM_PATH=/root/IsaacSim/_build/linux-x86_64/release \
     ISAACLAB_PATH=/root/IsaacLab \
     ISAACSIM_ASSET_PATH=/root/Assets_IsaacSim \
     LANG=C.UTF-8 \
@@ -244,8 +244,8 @@ LABEL description="Production desktop for Isaac Sim 5.1 and Isaac Lab with full 
 # Isaac Sim and Isaac Lab Environment Aliases
 # ============================================================================
 RUN echo "# Isaac Sim" >> /root/.bashrc && \
-    echo "alias isaac='/root/IsaacSim/isaac-sim.sh --allow-root'" >> /root/.bashrc && \
-    echo "alias isaacfull='/root/IsaacSim/isaac-sim.sh --allow-root --/persistent/isaac/asset_root/default=\"/root/Assets_IsaacSim/Assets/Isaac/5.1\"'" >> /root/.bashrc && \
+    echo "alias isaac='/root/IsaacSim/_build/linux-x86_64/release/isaac-sim.sh --allow-root'" >> /root/.bashrc && \
+    echo "alias isaacfull='/root/IsaacSim/_build/linux-x86_64/release/isaac-sim.sh --allow-root --/persistent/isaac/asset_root/default=\"/root/Assets_IsaacSim/Assets/Isaac/5.1\"'" >> /root/.bashrc && \
     echo "" >> /root/.bashrc && \
     echo "# Isaac Lab" >> /root/.bashrc && \
     echo "alias isaaclab='/root/IsaacLab/isaaclab.sh'" >> /root/.bashrc && \
@@ -253,6 +253,14 @@ RUN echo "# Isaac Sim" >> /root/.bashrc && \
     echo "" >> /root/.bashrc && \
     echo "# PATH setup for Isaac Sim binaries" >> /root/.bashrc && \
     echo "export PATH=\"\$ISAACSIM_PATH:\$ISAACSIM_PATH/kit:\$PATH\"" >> /root/.bashrc
+
+# ============================================================================
+# Ext Cache Symlink
+# Bridges absolute symlinks in extscache/ (which point to /home/saswata/...)
+# to the container-native mount at /root/.local/share/ov/data/exts/v2
+# ============================================================================
+RUN mkdir -p /home/saswata/.local/share/ov/data/exts && \
+    ln -s /root/.local/share/ov/data/exts/v2 /home/saswata/.local/share/ov/data/exts/v2
 
 # ============================================================================
 # Set Working Directory
