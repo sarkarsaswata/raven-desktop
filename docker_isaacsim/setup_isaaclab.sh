@@ -45,7 +45,7 @@ for arg in "$@"; do
     esac
 done
 
-: "${ISAACSIM_PATH:=/root/IsaacSim}"
+: "${ISAACSIM_PATH:=/root/IsaacSim/_build/linux-x86_64/release}"
 : "${ISAACLAB_PATH:=/root/IsaacLab}"
 
 VENV_DIR="/root/workspace/.isaaclab_env"
